@@ -104,7 +104,7 @@ public class Server2 {
 					opnd[0] = message[1];
 					sbuf = op.lookup(message[1]);
 					result = new String(sbuf);
-					System.out.println("Server received: " + oper + " " + opnd[0] + " " + opnd[1] + " :: " + result + "\n");
+					System.out.println("Server received: " + oper + " " + opnd[0] + " :: " + result + "\n");
 					break;
 				default:
 					sbuf = "ERROR".getBytes();
