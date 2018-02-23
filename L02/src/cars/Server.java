@@ -5,22 +5,24 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 
 public class Server {
 
-	public static void main(String[] args) throws IOException, UnknownHostException, InterruptedException {
+	public static void main(String[] args) throws IOException, UnknownHostException, InterruptedException{
+		
+		System.out.println("\nSERVER\n");
 
-		int srvc_port = Integer.parseInt(args[0]);
-		InetAddress mcast_addr = InetAddress.getByName(args[1]);
-		int mcast_port = Integer.parseInt(args[2]);
+		int srvc_port = Integer.parseInt(args[0].trim());
+		InetAddress mcast_addr = InetAddress.getByName(args[1].trim());
+		int mcast_port = Integer.parseInt(args[2].trim());
 
 		DatagramSocket serverSocket = new DatagramSocket(srvc_port);
 		serverSocket.setSoTimeout(1000);
 		
-		SocketAddress srvc_addr = serverSocket.getLocalSocketAddress();
+		//MAL
+		InetAddress srvc_addr = serverSocket.getInetAddress();
 
 		MulticastSocket mcastSocket = new MulticastSocket();
 		mcastSocket.setTimeToLive(1);
@@ -30,7 +32,6 @@ public class Server {
 		String[] message = new String[3];
 		String oper = null;
 		String[] opnd = new String[2];
-		String out = null;
 		byte[] sbuf = new byte[256];
 
 		boolean done = false;
