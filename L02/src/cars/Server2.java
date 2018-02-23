@@ -5,11 +5,47 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
-import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.Timer;
+import java.util.TimerTask;
 
-public class Server {
+public class Server2 {
 
+	
+	static class Task extends TimerTask {
+		
+		InetAddress srvc_addr;
+		int srvc_port;
+		MulticastSocket mcastSocket;
+		InetAddress mcast_addr;
+		int mcast_port;
+
+		public Task(InetAddress srvc_addr, int srvc_port, MulticastSocket mcastSocket, InetAddress mcast_addr,
+				int mcast_port) {
+			this.srvc_addr = srvc_addr;
+			this.srvc_port = srvc_port;
+			this.mcastSocket = mcastSocket;
+			this.mcast_addr = mcast_addr;
+			this.mcast_port = mcast_port;
+		}
+
+		@Override
+		public void run() {
+			String ad = srvc_addr + ":" + srvc_port;
+			DatagramPacket adPacket = new DatagramPacket(ad.getBytes(), ad.getBytes().length, mcast_addr, mcast_port);
+			
+			try {
+				mcastSocket.send(adPacket);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
+			System.out.println("multicast: " + mcast_addr + " " + mcast_port + " : " + srvc_addr + " " + srvc_port);
+			
+		}
+	}
+	
 	public static void main(String[] args) throws IOException, UnknownHostException, InterruptedException{
 		
 		System.out.println("\nSERVER\n");
@@ -19,7 +55,6 @@ public class Server {
 		int mcast_port = Integer.parseInt(args[2].trim());
 
 		DatagramSocket serverSocket = new DatagramSocket(srvc_port);
-		serverSocket.setSoTimeout(1000);
 		
 		InetAddress srvc_addr = InetAddress.getLocalHost();
 
@@ -35,14 +70,18 @@ public class Server {
 
 		boolean done = false;
 
-		Operation op = new Operation();
+		Operation op = new Operation();		
+		
+		Task task = new Task(srvc_addr, srvc_port, mcastSocket, mcast_addr, mcast_port);
+		
+		Timer timer = new Timer();
+		timer.schedule(task, 0, 1000);
 
 		while(!done) {
 
 			byte[] rbuf = new byte[256];
 			DatagramPacket rpacket = new DatagramPacket(rbuf, rbuf.length);
 
-			try {		
 				serverSocket.receive(rpacket);
 
 				clientData = rpacket.getData();
@@ -75,17 +114,8 @@ public class Server {
 				
 				DatagramPacket spacket = new DatagramPacket(sbuf, sbuf.length, mcast_addr, mcast_port);
 				serverSocket.send(spacket);	
-
-			}catch(SocketTimeoutException ex) {
 				
-				String ad = srvc_addr + ":" + srvc_port;
-				DatagramPacket adPacket = new DatagramPacket(ad.getBytes(), ad.getBytes().length, mcast_addr, mcast_port);
-				
-				mcastSocket.send(adPacket);
-				
-				System.out.println("multicast: " + mcast_addr + " " + mcast_port + " : " + srvc_addr + " " + srvc_port);
-			}
-
+			
 		}
 		
 		serverSocket.close();
@@ -93,5 +123,4 @@ public class Server {
 		mcastSocket.close();
 	}
 }
-
 
