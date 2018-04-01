@@ -1,66 +1,141 @@
 package files_data;
 
-public class Chunk{
+import java.util.ArrayList;
+
+import java.util.Collections;
+
+public class Chunk implements Comparable<Chunk> {
     private String fileID;
-    private int chunkNo;
-    private byte[] data;
-    private int repDegree;
-    private int chunkSize;
+    private int chunkNum;
+    private byte[] chunkData = null;
+    private int finalRepDeg;
+    private int repDeg = 0;
+    private ArrayList<Integer> peersIDs = new ArrayList<>();
 
-    public Chunk(int chunkNo, String fileID, byte[] data, int repDegree, int chunkSize) {
-        this.repDegree = repDegree;
-    	this.fileID = fileID;
-    	this.chunkNo = chunkNo;
-        this.data = data;
-        this.chunkSize = chunkSize;
+    public Chunk(String fileID, int chunkNum, byte[] chunkData, int finalRepDeg) {
+        this.finalRepDeg = finalRepDeg;
+        this.fileID = fileID;
+        this.chunkNum = chunkNum;
+        this.chunkData = chunkData;
     }
 
-    public String getFileId() {
-        return fileId;
+    public Chunk(int chunkNum, byte[] chunkData) {
+        this.chunkNum = chunkNum;
+        this.chunkData = chunkData;
     }
 
-    public void setFileId(String fileID) {
-        this.fileId = fileID;
+    public Chunk(String fileID, int chunkNum) {
+        this.fileID = fileID;
+        this.chunkNum = chunkNum;
+        this.finalRepDeg = 0;
     }
 
-    public int getChunkNo() {
-        return chunkNo;
+    public Chunk(int chunkNum) {
+        this.chunkNum = chunkNum;
     }
 
-    public void setChunkNo(int chunkNo) {
-        this.chunkNo = chunkNo;
+    public boolean equals(Object obj) {
+        if (obj instanceof Chunk) {
+            Chunk chunk = (Chunk) obj;
+            return (chunk.getChunkNum() == chunkNum);
+        } else {
+            return false;
+        }
     }
 
-    public byte[] getData() {
+    @Override
+    public int compareTo(Chunk chunk) {
+        if (chunkNum > chunk.getChunkNum())
+            return 1;
+        else
+            return 0;
+    }
+
+    public String getFileID() {
+        return fileID;
+    }
+
+    public boolean getRepDegGreaterThanFinalRepDeg() {
+        if (repDeg > finalRepDeg)
+            return true;
+        else
+            return false;
+    }
+
+    public int getChunkNum() {
+        return chunkNum;
+    }
+
+    public void setChunkNum(int chunkNum) {
+        this.chunkNum = chunkNum;
+    }
+
+    public byte[] getChunkData() {
         return chunkData;
     }
 
-    public void setData(byte[] data) {
-        this.data = data;
+    public void setChunkData(byte[] chunkData) {
+        this.chunkData = chunkData;
     }
 
-    public int getRepDegree() {
-        return repDegree;
+    public void updateChunkRepDeg(int peerID, int incFinal) {
+        if (!checkChunkFromPeer(peerID)) {
+            if (incFinal != -1)
+                finalRepDeg = incFinal;
+            peersIDs.add(peerID);
+            incRepDeg();
+        }
     }
 
-    public void setRepDegree(int repDegree) {
-        this.repDegree = repDegree;
+    public boolean checkChunkFromPeer(int peerID) {
+        for (int i = 0; i < peersIDs.size(); i++) {
+            if (peersIDs.get(i) == peerID)
+                return true;
+        }
+
+        return false;
     }
 
-    public int getChunkSize() {
-        return chunkSize;
+    public void removePeerID(int peerID) {
+        for (int i = 0; i < peersIDs.size(); i++) {
+            if (peersIDs.get(i) == peerID) {
+                peersIDs.remove(i);
+                decRepDeg();
+                break;
+            }
+        }
     }
 
-    public void setChunkSize(int chunkSize) {
-        chunkSize = chunkSize;
+    public int getFinalRepDeg() {
+        return finalRepDeg;
     }
 
-    public void incRepDegree(){
-        this.repDegree++;
+    public void setFinalRepDeg(int finalRepDeg) {
+        this.finalRepDeg = finalRepDeg;
     }
 
-    public void decRepDegree(){
-        this.repDegree--;
+    public int getRepDeg() {
+        return repDeg;
+    }
+
+    public void setRepDeg(int repDeg) {
+        this.repDeg = repDeg;
+    }
+
+    public ArrayList<Integer> getPeersIDs() {
+        return peersIDs;
+    }
+
+    public void setPeersIDs(ArrayList<Integer> peersIDs) {
+        this.peersIDs = peersIDs;
+    }
+
+    public void incRepDeg() {
+        this.repDeg++;
+    }
+
+    public void decRepDeg() {
+        this.repDeg--;
     }
 
 }

@@ -7,157 +7,309 @@ import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
-
+import java.nio.charset.StandardCharsets;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.Registry;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.text.MessageFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import communication.RMI;
+import files_data.*;
+import message.MessageBody;
+import message.MessageHeader;
+import message.Message;
+import subprotocols.*;
+import subprotocolsInitiators.*;
+import utils.*;
 
-// import channels.*;
+import channels.*;
 
-public class Peer implements RMI{
+public class Peer implements RMI {
 
+	private static MC_channel mc_channel;
+	private static MDB_channel mdb_channel;
+	private static MDR_channel mdr_channel;
 
-	// private MC_channel mc_channel;
-	// private MDB_channel mdb_channel;
-	// private MDR_channel mdr_channel;
+	private static String protocol_version;
+	private static int server_id;
+	private static String service_access_point;
+
+	private static FileHandler fileHandler;
+	private static SubprotocolManager subprotocolManager;
+	private static SubprotocolInitiator subprotocolInitiator;
+	private static SubprotocolInitManager subprotocolInitManager;
+
+	private static long spaceReclaimed;
+
+	public static void main(String[] args) throws IOException, InterruptedException {
+
+		if (!validateArgs(args))
+			return;
+
+		initiateRMI();
+
+		spaceReclaimed = Utils.MAX_DISK_REQUIRED_SPACE;
+
+		subprotocolManager = new SubprotocolManager();
+
+		subprotocolInitiator = null;
+
+		subprotocolInitManager = new SubprotocolInitManager(protocol_version);
+
+		fileHandler = new FileHandler();
+
+		new Thread(mc_channel).start();
+		new Thread(mdb_channel).start();
+		new Thread(mdr_channel).start();
+
+		new Thread(subprotocolManager).start();
+
+		File directory = new File(Utils.TMP_CHUNKS + server_id);
+		directory.mkdir();
 	
-	private static int serverID;
+	}
 
-	// InetAddress MC_ip, MDB_ip, MDR_ip;
-	// int MC_port, MDB_port, MDR_port;
+	private static void initiateRMI() {
+		Peer peer = new Peer();
+		try {
+			RMI stub = (RMI) UnicastRemoteObject.exportObject(peer, 0);
 
-		private static InetAddress mcAddress;
-	private static int mcPort;
+			Registry registry = LocateRegistry.getRegistry();
+			registry.rebind(service_access_point, stub);
 
-	private static InetAddress mdbAddress;
-	private static int mdbPort;
+			System.out.println("Peer ready");
+		} catch (Exception e) {
+			System.err.println("Peer exception: " + e.toString());
+			e.printStackTrace();
+		}
+	}
 
-	private static InetAddress mdrAddress;
-	private static int mdrPort;
+	@Override
+	public void backup(String filePath, int repDeg, byte[] fileData)
+			throws IOException, NoSuchAlgorithmException, InterruptedException {
 
-	private static String remoteObjName = "TestRMI";
+		subprotocolInitManager.getBackupInitiator().setFilePath(filePath);
+		subprotocolInitManager.getBackupInitiator().setRepDeg(repDeg);
+		subprotocolInitManager.getBackupInitiator().setFileData(fileData);
 
-	public static void main(String[] args) throws IOException{
+		subprotocolInitManager.getBackupInitiator().initiate();
+	}
 
-		 try {
-            Peer obj = new Peer();
-            RMI stub = (RMI) UnicastRemoteObject.exportObject(obj, 0);
+	@Override
+	public void restore(String filePath) throws IOException, InterruptedException {
 
-            // Bind the remote object's stub in the registry
-            Registry registry = LocateRegistry.createRegistry(1099);
-            registry.bind(remoteObjName, stub);
+		subprotocolInitManager.getRestoreInitiator().setFilePath(filePath);
+		subprotocolInitManager.getRestoreInitiator().initiate();
+	}
 
-            System.err.println("Peer ready");
-        } catch (Exception e) {
-            System.err.println("Peer exception: " + e.toString());
-            e.printStackTrace();
-        }
-
-		// if(validateArgs(args) == -1)
-		// 	return;
-
-		
-		// // multicast control channel
-		// MulticastSocket mcSocket = new MulticastSocket();
-		// mcSocket.setTimeToLive(1);
-
-		// // multicast data backup channel
-		// MulticastSocket mdbSocket = new MulticastSocket();
-		// mdbSocket.setTimeToLive(1);
-
-		// // multicast data restore channel
-		// MulticastSocket mdrSocket = new MulticastSocket();
-		// mdrSocket.setTimeToLive(1);
-
-		// String test;
-		// DatagramPacket packet;
-
-		// test = "mc test";
-		// packet = new DatagramPacket(test.getBytes(), test.getBytes().length,
-		// 		mcAddress, mcPort);
-		// mcSocket.send(packet);
-
-		// test = "mdb test";
-		// packet = new DatagramPacket(test.getBytes(), test.getBytes().length,
-		// 		mdbAddress, mdbPort);
-		// mdbSocket.send(packet);
-
-		// test = "mdr test";
-		// packet = new DatagramPacket(test.getBytes(), test.getBytes().length,
-		// 		mdrAddress, mdrPort);
-		// mdrSocket.send(packet);
-
-		// mcSocket.close();
-		// mdbSocket.close();
-		// mdrSocket.close();
-
-		// System.out.println("- done -");
-
-		
-		// new Thread(mc_channel).start();
-		// new Thread(mdb_channel).start();
-		// new Thread(mdr_channel).start();
+	@Override
+	public void delete(String filePath) throws IOException, InterruptedException {
+		subprotocolInitManager.getDeleteInitiator().setFilePath(filePath);
+		subprotocolInitManager.getDeleteInitiator().initiate();
 
 	}
 
-	public String test() throws RemoteException{
-		return "TEST";
+	@Override
+	public void reclaimDiskSpace(long spaceRequired) throws IOException, InterruptedException {
+		subprotocolInitManager.getSpaceReclaimInitiator().setSpaceRequired(spaceRequired);
+		subprotocolInitManager.getSpaceReclaimInitiator().initiate();
+
 	}
 
-	private static int validateArgs(String[] args) throws UnknownHostException{
-		
+	@Override
+	public String stateInformation() throws IOException, InterruptedException {
 
-		if(args.length != 7){
-			System.out.println("Usage: java peer.Peer <Server ID> <MC_addr> <MC_port> <MDB_addr> <MDB_port> <MDR_addr> <MDR_port>");
-			return -1;
-		}else{
-			mcAddress = InetAddress.getByName(args[1]);
-			mcPort = Integer.parseInt(args[2]);
+		subprotocolInitManager.getStateInformationInitiator().initiate();
+		String str = subprotocolInitManager.getStateInformationInitiator().getMessage();
 
-			mdbAddress = InetAddress.getByName(args[3]);
-			mdbPort = Integer.parseInt(args[4]);
+		return str;
+	}
 
-			mdrAddress = InetAddress.getByName(args[5]);
-			mdrPort = Integer.parseInt(args[6]);
+	private static boolean validateArgs(String[] args) throws UnknownHostException, IOException {
+		InetAddress MC_ip, MDB_ip, MDR_ip;
+		int MC_port, MDB_port, MDR_port;
 
+		if (args.length != 6) {
+			System.out.println(
+					"Usage: java peer.Peer <protocol_version> <server_id> <service_access_point> <mc:mc_port> <mdb:mdb_port> <mdl:mdl_port>");
+			return false;
+		} else {
+			protocol_version = args[0].trim();
 
-			serverID = Integer.parseInt(args[0].trim());
+			server_id = Integer.parseInt(args[1].trim());
 
-			// MC_ip = InetAddress.getByName(args[1].trim());
-			// MC_port = Integer.parseInt(args[2].trim());
+			service_access_point = args[2].trim();
 
-			// MDB_ip = InetAddress.getByName(args[3].trim());
-			// MDB_port = Integer.parseInt(args[4].trim());
+			String[] mc_address = args[3].trim().split(":");
+			MC_ip = InetAddress.getByName(mc_address[0]);
+			MC_port = Integer.parseInt(mc_address[1]);
 
-			// MDR_ip = InetAddress.getByName(args[5].trim());
-			// MDR_port = Integer.parseInt(args[6].trim());
+			String[] mdb_address = args[4].trim().split(":");
+			MDB_ip = InetAddress.getByName(mdb_address[0]);
+			MDB_port = Integer.parseInt(mdb_address[1]);
 
-			// mc_channel = new MC_channel(MC_port, MC_ip);
-			// mdb_channel = new MDB_channel(MDB_port, MDB_ip);
-			// mdr_channel = new MDR_channel(MDR_port, MDR_ip);
+			String[] mdr_address = args[5].trim().split(":");
+			MDR_ip = InetAddress.getByName(mdr_address[0]);
+			MDR_port = Integer.parseInt(mdr_address[1]);
+
+			mc_channel = new MC_channel(MC_ip, MC_port);
+			mdb_channel = new MDB_channel(MDB_ip, MDB_port);
+			mdr_channel = new MDR_channel(MDR_ip, MDR_port);
 		}
 
-		return 1;
+		return true;
 	}
 
-	// public MC_channel getMcChannel(){
-	// 	return mc_channel;
+	public static void updateFileStored(Message message) {
+		fileHandler.updateStoredChunks(message);
+		subprotocolInitManager.getBackupInitiator().updateUploadingChunks(message);
+
+	}
+
+	public static void deleteFileStored(String fileID) throws IOException {
+		fileHandler.deleteStoredFileChunks(fileID);
+	}
+
+	public static void deleteStoredChunk(String fileID, int chunkNum) throws IOException {
+		fileHandler.deleteStoredChunk(fileID, chunkNum, server_id);
+	}
+
+	public static void receiveChunk(Message message) {
+		subprotocolInitManager.getRestoreInitiator().addChunkRestore(message);
+	}
+
+	public static MC_channel getMcChannel() {
+		return mc_channel;
+	}
+
+	public static MDB_channel getMdbChannel() {
+		return mdb_channel;
+	}
+
+	public static MDR_channel getMdrChannel() {
+		return mdr_channel;
+	}
+
+	public static void sendMCMessage(byte[] message) {
+		mc_channel.sendMessage(message);
+	}
+
+	public static void sendMDBMessage(byte[] message) {
+		mdb_channel.sendMessage(message);
+	}
+
+	public static void sendMDRMessage(byte[] message) {
+		mdr_channel.sendMessage(message);
+	}
+
+	// public static void setMcChannel(MC_channel channel) {
+	// 	mc_channel = channel;
 	// }
 
-	// public MDB_channel getMdbChannel(){
-	// 	return mdb_channel;
+	// public static void setMdbChannel(MDB_channel channel) {
+	// 	mdb_channel = channel;
 	// }
 
-	// public MDR_channel getMdrChannel(){
-	// 	return mdr_channel;
+	// public static void setMdrChannel(MDR_channel channel) {
+	// 	mdr_channel = channel;
 	// }
 
-	public int getServerID(){
-		return serverID;
+	public static void addMessageSubprotocolManager(String message) {
+
+		subprotocolManager.addMessage(message);
+	}
+
+	public static int getServerID() {
+		return server_id;
+	}
+
+	public static void setServerID(int serverID) {
+		server_id = serverID;
+	}
+
+	public static String getProtocolVersion() {
+		return protocol_version;
+	}
+
+	public static void setProtocolVersion(String protocolVersion) {
+		protocol_version = protocolVersion;
+	}
+
+	public static String getServiceAccessPoint() {
+		return service_access_point;
+	}
+
+	public static void setServiceAccessPoint(String serviceAcessPoint) {
+		service_access_point = serviceAcessPoint;
+	}
+
+	public static long getSpaceReclaimed() {
+		return spaceReclaimed;
+	}
+
+	public static void setSpaceReclaimed(long space) {
+		spaceReclaimed = space;
+	}
+
+	public static long getOcupiedSpace() throws IOException {
+		return fileHandler.getStoredUsedSpace();
+	}
+
+	public static ArrayList<Chunk> getOrderedStoredChunks() {
+		return fileHandler.getOrderedByRepDegChunks();
+	}
+
+	public static SubprotocolInitiator getSubprotocolInitiator() {
+		return subprotocolInitiator;
+	}
+
+	public static void setSubprotocolInitiator(SubprotocolInitiator subprotocol) {
+		subprotocolInitiator = subprotocol;
+	}
+
+	public static FileHandler getFileHandler() {
+		return fileHandler;
+	}
+
+	public static void setFileHandler(FileHandler handler) {
+		fileHandler = handler;
+	}
+
+	public static void addFileToHandlerStored(FileData file) {
+		fileHandler.addFileStored(file);
+	}
+
+	public static FileData getFileFromHandlerStored(String filePath) {
+		return fileHandler.getFileFromFilePath(filePath);
+	}
+
+	public static FileData getFileFromHandlerStoredFileID(String fileID) {
+		return fileHandler.getFileFromFileID(fileID);
+	}
+
+	public static SubprotocolManager getSubprotocolManager() {
+		return subprotocolManager;
+	}
+
+	public static void setSubprotocolManager(SubprotocolManager manager) {
+		subprotocolManager = manager;
+	}
+
+	public static SubprotocolInitManager getSubprotocolInitManager() {
+		return subprotocolInitManager;
+	}
+
+	public static void setSubprotocolInitManager(SubprotocolInitManager manager) {
+		subprotocolInitManager = manager;
 	}
 }
