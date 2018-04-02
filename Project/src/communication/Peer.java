@@ -18,9 +18,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import communication.RMI;
@@ -46,23 +43,22 @@ public class Peer implements RMI {
 
 	private static FileHandler fileHandler;
 	private static SubprotocolManager subprotocolManager;
-	private static SubprotocolInitiator subprotocolInitiator;
 	private static SubprotocolInitManager subprotocolInitManager;
 
-	private static long spaceReclaimed;
+	private static long spaceAvailable;
 
 	public static void main(String[] args) throws IOException, InterruptedException {
 
 		if (!validateArgs(args))
 			return;
 
+		createPeerDirectories();
+
 		initiateRMI();
 
-		spaceReclaimed = Utils.MAX_DISK_REQUIRED_SPACE;
+		spaceAvailable = Utils.MAX_DISK_REQUIRED_SPACE;
 
 		subprotocolManager = new SubprotocolManager();
-
-		subprotocolInitiator = null;
 
 		subprotocolInitManager = new SubprotocolInitManager(protocol_version);
 
@@ -73,20 +69,38 @@ public class Peer implements RMI {
 		new Thread(mdr_channel).start();
 
 		new Thread(subprotocolManager).start();
+		
 
-		File directory = new File(Utils.TMP_CHUNKS + server_id);
-		directory.mkdir();
-	
+	}
+
+	private static void createPeerDirectories() {
+		File chunkDir = new File(Utils.TMP_CHUNKS + server_id);
+		if (chunkDir.exists()) {
+			try {
+				Utils.deleteDirectory(chunkDir);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		chunkDir.mkdir();
+
+		File restoreDir = new File(Utils.TMP_FILES_RESTORED + server_id);
+		if (restoreDir.exists()) {
+			try {
+				Utils.deleteDirectory(restoreDir);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+		restoreDir.mkdir();
 	}
 
 	private static void initiateRMI() {
 		Peer peer = new Peer();
 		try {
 			RMI stub = (RMI) UnicastRemoteObject.exportObject(peer, 0);
-
 			Registry registry = LocateRegistry.getRegistry();
 			registry.rebind(service_access_point, stub);
-
 			System.out.println("Peer ready");
 		} catch (Exception e) {
 			System.err.println("Peer exception: " + e.toString());
@@ -95,9 +109,7 @@ public class Peer implements RMI {
 	}
 
 	@Override
-	public void backup(String filePath, int repDeg, byte[] fileData)
-			throws IOException, NoSuchAlgorithmException, InterruptedException {
-
+	public void backup(String filePath, int repDeg, byte[] fileData) throws IOException {
 		subprotocolInitManager.getBackupInitiator().setFilePath(filePath);
 		subprotocolInitManager.getBackupInitiator().setRepDeg(repDeg);
 		subprotocolInitManager.getBackupInitiator().setFileData(fileData);
@@ -106,29 +118,27 @@ public class Peer implements RMI {
 	}
 
 	@Override
-	public void restore(String filePath) throws IOException, InterruptedException {
-
+	public void restore(String filePath) throws IOException {
 		subprotocolInitManager.getRestoreInitiator().setFilePath(filePath);
 		subprotocolInitManager.getRestoreInitiator().initiate();
 	}
 
 	@Override
-	public void delete(String filePath) throws IOException, InterruptedException {
+	public void delete(String filePath) throws IOException {
 		subprotocolInitManager.getDeleteInitiator().setFilePath(filePath);
 		subprotocolInitManager.getDeleteInitiator().initiate();
 
 	}
 
 	@Override
-	public void reclaimDiskSpace(long spaceRequired) throws IOException, InterruptedException {
+	public void reclaimDiskSpace(long spaceRequired) throws IOException {
 		subprotocolInitManager.getSpaceReclaimInitiator().setSpaceRequired(spaceRequired);
 		subprotocolInitManager.getSpaceReclaimInitiator().initiate();
 
 	}
 
 	@Override
-	public String stateInformation() throws IOException, InterruptedException {
-
+	public String stateInformation() throws IOException {
 		subprotocolInitManager.getStateInformationInitiator().initiate();
 		String str = subprotocolInitManager.getStateInformationInitiator().getMessage();
 
@@ -140,8 +150,7 @@ public class Peer implements RMI {
 		int MC_port, MDB_port, MDR_port;
 
 		if (args.length != 6) {
-			System.out.println(
-					"Usage: java peer.Peer <protocol_version> <server_id> <service_access_point> <mc:mc_port> <mdb:mdb_port> <mdl:mdl_port>");
+			System.out.println("Usage: java communication/Peer <protocol_version> <server_id> <service_access_point> <mc:mc_port> <mdb:mdb_port> <mdl:mdl_port>");
 			return false;
 		} else {
 			protocol_version = args[0].trim();
@@ -170,7 +179,7 @@ public class Peer implements RMI {
 		return true;
 	}
 
-	public static void updateFileStored(Message message) {
+	public static void updateStored(Message message) {
 		fileHandler.updateStoredChunks(message);
 		subprotocolInitManager.getBackupInitiator().updateUploadingChunks(message);
 
@@ -184,49 +193,9 @@ public class Peer implements RMI {
 		fileHandler.deleteStoredChunk(fileID, chunkNum, server_id);
 	}
 
-	public static void receiveChunk(Message message) {
+	public static void restoreGetChunk(Message message) {
+		fileHandler.checkRestoringChunk(message);
 		subprotocolInitManager.getRestoreInitiator().addChunkRestore(message);
-	}
-
-	public static MC_channel getMcChannel() {
-		return mc_channel;
-	}
-
-	public static MDB_channel getMdbChannel() {
-		return mdb_channel;
-	}
-
-	public static MDR_channel getMdrChannel() {
-		return mdr_channel;
-	}
-
-	public static void sendMCMessage(byte[] message) {
-		mc_channel.sendMessage(message);
-	}
-
-	public static void sendMDBMessage(byte[] message) {
-		mdb_channel.sendMessage(message);
-	}
-
-	public static void sendMDRMessage(byte[] message) {
-		mdr_channel.sendMessage(message);
-	}
-
-	// public static void setMcChannel(MC_channel channel) {
-	// 	mc_channel = channel;
-	// }
-
-	// public static void setMdbChannel(MDB_channel channel) {
-	// 	mdb_channel = channel;
-	// }
-
-	// public static void setMdrChannel(MDR_channel channel) {
-	// 	mdr_channel = channel;
-	// }
-
-	public static void addMessageSubprotocolManager(String message) {
-
-		subprotocolManager.addMessage(message);
 	}
 
 	public static int getServerID() {
@@ -253,12 +222,12 @@ public class Peer implements RMI {
 		service_access_point = serviceAcessPoint;
 	}
 
-	public static long getSpaceReclaimed() {
-		return spaceReclaimed;
+	public static long getSpaceAvailable() {
+		return spaceAvailable;
 	}
 
-	public static void setSpaceReclaimed(long space) {
-		spaceReclaimed = space;
+	public static void setSpaceAvailable(long space) {
+		spaceAvailable = space;
 	}
 
 	public static long getOcupiedSpace() throws IOException {
@@ -267,14 +236,6 @@ public class Peer implements RMI {
 
 	public static ArrayList<Chunk> getOrderedStoredChunks() {
 		return fileHandler.getOrderedByRepDegChunks();
-	}
-
-	public static SubprotocolInitiator getSubprotocolInitiator() {
-		return subprotocolInitiator;
-	}
-
-	public static void setSubprotocolInitiator(SubprotocolInitiator subprotocol) {
-		subprotocolInitiator = subprotocol;
 	}
 
 	public static FileHandler getFileHandler() {
@@ -311,5 +272,17 @@ public class Peer implements RMI {
 
 	public static void setSubprotocolInitManager(SubprotocolInitManager manager) {
 		subprotocolInitManager = manager;
+	}
+
+	public static MC_channel getMcChannel() {
+		return mc_channel;
+	}
+
+	public static MDB_channel getMdbChannel() {
+		return mdb_channel;
+	}
+
+	public static MDR_channel getMdrChannel() {
+		return mdr_channel;
 	}
 }

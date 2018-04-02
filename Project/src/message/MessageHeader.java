@@ -2,35 +2,36 @@ package message;
 
 import utils.Utils;
 
-public class MessageHeader{
+public class MessageHeader {
     private Message.MessageType messageType;
     private String protocol_version;
     private int peerID;
     private String fileID;
-    private int chunkNum = -1;
+    private int chunkNum = 0;
     private int repDeg = -1;
 
-    // Putchunk
-    public MessageHeader(Message.MessageType messageType, String protocol_version, int peerID, String fileID, int chunkNum,
-            int repDeg) {
-        this.messageType = messageType;
-        this.protocol_version = protocol_version;
-        this.peerID = peerID;
-        this.fileID = fileID;
+    /**
+     * Constructor used for Putchunk
+     */
+    public MessageHeader(Message.MessageType messageType, String protocol_version, int peerID, String fileID,
+            int chunkNum, int repDeg) {
+        this(messageType, protocol_version, peerID, fileID);
         this.chunkNum = chunkNum;
         this.repDeg = repDeg;
     }
 
-    // Stored, GetChunk, Chunk, Removed
-    public MessageHeader(Message.MessageType messageType, String protocol_version, int peerID, String fileID, int chunkNum) {
-        this.messageType = messageType;
-        this.protocol_version = protocol_version;
-        this.peerID = peerID;
-        this.fileID = fileID;
+    /**
+     * Constructor used for Stored, GetChunk, Chunk and Removed
+     */
+    public MessageHeader(Message.MessageType messageType, String protocol_version, int peerID, String fileID,
+            int chunkNum) {
+        this(messageType, protocol_version, peerID, fileID);
         this.chunkNum = chunkNum;
     }
 
-    // Delete
+    /**
+     * Constructor used for Delete
+     */
     public MessageHeader(Message.MessageType messageType, String protocol_version, int peerID, String fileID) {
         this.messageType = messageType;
         this.protocol_version = protocol_version;
@@ -86,20 +87,20 @@ public class MessageHeader{
         this.repDeg = repDeg;
     }
 
-    public String getMessageHeaderStr(){
+    public String getMessageHeaderStr() {
         String msg;
-        switch(messageType){
-            case PUTCHUNK:
-                msg = messageType + " " + protocol_version + " " + peerID + " " + fileID + " " + chunkNum + " " + repDeg
+        switch (messageType) {
+        case PUTCHUNK:
+            msg = messageType + " " + protocol_version + " " + peerID + " " + fileID + " " + chunkNum + " " + repDeg
                     + " " + Utils.CRLF + Utils.CRLF;
-                break;
-            case DELETE:
-                msg = messageType + " " + protocol_version + " " + peerID + " " + fileID + " " + Utils.CRLF + Utils.CRLF;
-                break;
-            default:
-                msg = messageType + " " + protocol_version + " " + peerID + " " + fileID + " " + chunkNum + " " + Utils.CRLF
+            break;
+        case DELETE:
+            msg = messageType + " " + protocol_version + " " + peerID + " " + fileID + " " + Utils.CRLF + Utils.CRLF;
+            break;
+        default:
+            msg = messageType + " " + protocol_version + " " + peerID + " " + fileID + " " + chunkNum + " " + Utils.CRLF
                     + Utils.CRLF;
-                break;
+            break;
         }
 
         return msg;

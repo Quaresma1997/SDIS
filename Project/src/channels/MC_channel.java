@@ -1,6 +1,5 @@
 package channels;
 
-
 import java.net.InetAddress;
 
 import java.net.MulticastSocket;
@@ -22,33 +21,24 @@ public class MC_channel extends Channel {
 
     public MC_channel(InetAddress ip, int port) {
         super(ip, port);
-        System.out.println("MC online.");
+        System.out.println("Started MC");
     }
 
     @Override
     public void run() {
-        // initiateSocket();
         boolean stop = false;
-        System.out.println("MC");
         while (!stop) {
-            System.out.println("MC HI");
             byte[] buffer = new byte[Utils.HEADER_SIZE];
             DatagramPacket dp = new DatagramPacket(buffer, buffer.length);
             try {
                 socket.receive(dp);
                 String message = new String(dp.getData(), 0, dp.getLength(), Charset.forName("ISO_8859_1"));
-                //System.out.println("MC message: " + message);
+                Peer.getSubprotocolManager().addMessage(message);
 
-                Peer.addMessageSubprotocolManager(message);
-               
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            
         }
         closeSocket();
-
-        
     }
-
 }

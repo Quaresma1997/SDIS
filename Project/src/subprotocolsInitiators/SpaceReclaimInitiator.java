@@ -19,17 +19,8 @@ public class SpaceReclaimInitiator extends SubprotocolInitiator{
 
     @Override
     public void initiate() throws IOException{
-        long freeSpace = 0;
-        String os_name = System.getProperty("os.name");
-        if(os_name.startsWith("Windows"))
-            freeSpace = new File("C:").getFreeSpace();
-        else if(os_name.startsWith("Linux"))
-            freeSpace = new File("/").getFreeSpace();
-        
-        System.out.println(Peer.getOcupiedSpace());
-
-        if (spaceRequired * 1000 > freeSpace) {
-            System.out.println("Space required is more than the available space in the machine!");
+        if (spaceRequired * 1000 > Peer.getSpaceAvailable() * 1000) {
+            System.out.println("Space required is more than the available space in the peer!");
             return;
         }
 
@@ -37,7 +28,7 @@ public class SpaceReclaimInitiator extends SubprotocolInitiator{
             removeChunksWithMoreRepDeg();
         }
 
-        Peer.setSpaceReclaimed(spaceRequired);
+        Peer.setSpaceAvailable(spaceRequired);
 
         Peer.getSubprotocolInitManager().resetSpaceReclaimInitiator();
     }
@@ -46,8 +37,6 @@ public class SpaceReclaimInitiator extends SubprotocolInitiator{
         ArrayList<Chunk> chunkList = Peer.getOrderedStoredChunks();
         int numChunksRemoved = 0;
         Chunk chunkRemove = chunkList.get(numChunksRemoved);
-        System.out.println(chunkList.size());
-        System.out.println(chunkRemove.getFileID());
         do {
             FileData file = Peer.getFileFromHandlerStoredFileID(chunkRemove.getFileID());
             String fileID = file.getFileID();
@@ -55,8 +44,8 @@ public class SpaceReclaimInitiator extends SubprotocolInitiator{
             MessageHeader msgHeader = new MessageHeader(Message.MessageType.REMOVED, Peer.getProtocolVersion(),
                     Peer.getServerID(), fileID, chunkRemove.getChunkNum());
             Message message = new Message(msgHeader);
-            byte[] buffer = message.getMessageBytes();
-            Peer.sendMCMessage(buffer);
+            byte[] buffer = message.getMsgBytes();
+            Peer.getMcChannel().sendMessage(buffer);
             Peer.deleteStoredChunk(fileID, chunkRemove.getChunkNum());
 
             numChunksRemoved++;

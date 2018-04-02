@@ -1,5 +1,11 @@
 package utils;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
 public class Utils{
     public static final int BODY_SIZE = 64000;
     public static final int HEADER_SIZE = 256;
@@ -18,8 +24,18 @@ public class Utils{
     public final static String CRLF = "" + CR + LF;
 
     public static final String TMP_CHUNKS = "tmp_chunks";
-    public static final String TMP_FILES_RESTORED = "tmp_restores/";
+    public static final String TMP_FILES_RESTORED = "tmp_restores";
     public static final String FILES = "files_examples/";
 
+
+    public static boolean deleteDirectory(File f) throws IOException {
+        if (f.isDirectory()) {
+            for (File c : f.listFiles())
+                Files.delete(Paths.get(c.getPath()));
+        }
+
+        return true;
+        
+    }
     
 }

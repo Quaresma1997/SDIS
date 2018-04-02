@@ -7,7 +7,7 @@ import files_data.FileData;
 import message.*;
 import utils.Utils;
 
-public class DeleteInitiator extends SubprotocolInitiator{
+public class DeleteInitiator extends SubprotocolInitiator {
     private String filePath;
 
     public DeleteInitiator(String protocol_version) throws IOException {
@@ -16,27 +16,26 @@ public class DeleteInitiator extends SubprotocolInitiator{
     }
 
     @Override
-    public void initiate() throws IOException{
+    public void initiate() throws IOException {
         FileData file = Peer.getFileFromHandlerStored(filePath);
 
-        if(file == null){
+        if (file == null) {
             System.out.println("File has not started backup in this peer.");
             return;
         }
-     
+
         String fileID = file.getFileID();
 
-        System.out.println("Pathname: " + filePath + ", file id: " + fileID);
         MessageHeader msgHeader = new MessageHeader(Message.MessageType.DELETE, protocol_version, Peer.getServerID(),
                 fileID);
         Message message = new Message(msgHeader);
-        byte[] buffer = message.getMessageBytes();
+        byte[] buffer = message.getMsgBytes();
 
         Peer.deleteFileStored(fileID);
 
-        // We send 'numDeleteMessages' messages to make sure every chunk is properly deleted.
+        //Send the delete message 3 times to ensure it gets deleted
         for (int i = 0; i < Utils.DELETE_MSGS_NUM; i++)
-            Peer.sendMCMessage(buffer);
+            Peer.getMcChannel().sendMessage(buffer);
 
         Peer.getSubprotocolInitManager().resetDeleteInitiator();
     }

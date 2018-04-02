@@ -114,6 +114,13 @@ public class Chunk implements Comparable<Chunk> {
         this.finalRepDeg = finalRepDeg;
     }
 
+    public boolean getRepDegGreaterEqualFinal() {
+        if (repDeg >= finalRepDeg)
+            return true;
+        else
+            return false;
+    }
+
     public int getRepDeg() {
         return repDeg;
     }

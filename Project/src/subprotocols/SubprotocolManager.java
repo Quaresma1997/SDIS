@@ -20,18 +20,17 @@ public class SubprotocolManager implements Runnable {
         messages = new ConcurrentLinkedQueue<>();
         toRun = new AtomicBoolean(true);
         executor = Executors.newFixedThreadPool(Utils.NUM_THREADS_POOL);
-
     }
 
     @Override
     public void run() {
         try {
             while (toRun.get() || !executor.isTerminated()) {
-                Message message;
-                while ((message = messages.poll()) != null) {
-                    makeRequest(message);
+                Message newMsg;
+                while ((newMsg = messages.poll()) != null) {
+                    makeRequest(newMsg);
                 }
-                // Sleep in case there wasn't any runnable in the queue. This helps to avoid hogging the CPU.
+                //If there was no message, sleep
                 Thread.sleep(1);
             }
         } catch (RuntimeException e) {
@@ -43,36 +42,31 @@ public class SubprotocolManager implements Runnable {
         }
     }
 
-    public void setMessagesQueue(ConcurrentLinkedQueue<Message> messages) {
-        this.messages = messages;
-    }
-
     public void addMessage(String newMsg) {
         Message message = new Message(newMsg);
         messages.add(message);
     }
 
     public void makeRequest(Message message) throws IOException {
-      
-        if(message.getHeader().getPeerID() == Peer.getServerID())
+
+        if (message.getHeader().getPeerID() == Peer.getServerID())
             return;
 
-        System.out.println("MAKE REQUEST");
-        System.out.println(message.getHeader().getMessageType());
+//        System.out.println("MAKE REQUEST: " + message.getHeader().getMessageType());
         switch (message.getHeader().getMessageType()) {
         case PUTCHUNK:
             Backup backup = new Backup(message);
             executor.execute(backup);
             break;
         case STORED:
-            Peer.updateFileStored(message);
+            Peer.updateStored(message);
             break;
         case GETCHUNK:
             Restore restore = new Restore(message);
             executor.execute(restore);
             break;
         case CHUNK:
-            Peer.receiveChunk(message);
+            Peer.restoreGetChunk(message);
             break;
         case DELETE:
             Delete delete = new Delete(message);

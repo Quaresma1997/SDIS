@@ -12,8 +12,10 @@ import message.Message;
 import message.MessageHeader;
 import utils.Utils;
 
+import java.util.concurrent.ConcurrentHashMap;
+
 public class FileHandler {
-    private Map<String, FileData> stored = new HashMap<String, FileData>();
+    private ConcurrentHashMap<String, FileData> stored = new ConcurrentHashMap<String, FileData>();
 
     private ArrayList<Chunk> backingUp = new ArrayList<Chunk>();
     private ArrayList<Chunk> restoringChunks = new ArrayList<Chunk>();
@@ -21,11 +23,11 @@ public class FileHandler {
     public FileHandler() {
     }
 
-    public Map<String, FileData> getStored() {
+    public ConcurrentHashMap<String, FileData> getStored() {
         return stored;
     }
 
-    public void setStored(Map<String, FileData> stored) {
+    public void setStored(ConcurrentHashMap<String, FileData> stored) {
         this.stored = stored;
     }
 
@@ -50,12 +52,14 @@ public class FileHandler {
         stored.clear();
     }
 
-    public synchronized boolean addFileStored(FileData file) {
-
-        if (stored.put(file.getFileID(), file) == null)
+    public synchronized void addFileStored(FileData file) {
+        if (!stored.containsKey(file.getFileID())) {
+            stored.put(file.getFileID(), file);
+        }
+        /* if (stored.put(file.getFileID(), file) == null)
             return false;
         else
-            return true;
+            return true; */
     }
 
     public synchronized void addFileChunkPutchunk(Chunk chunk, String fileID) {
@@ -102,14 +106,18 @@ public class FileHandler {
         return restoringChunks;
     }
 
-    public synchronized ArrayList<Chunk> getChunks() {
-        ArrayList<Chunk> chunkList = new ArrayList<Chunk>();
-        Collection<FileData> files = stored.values();
-        for (FileData file : files) {
-            for (int i = 0; i < file.getChunkList().size(); i++)
-                chunkList.add(file.getChunkList().get(i));
-        }
-        return chunkList;
+    public void removeRestoringChunks(Chunk chunk) {
+        restoringChunks.remove(chunk);
+    }
+
+    public void checkRestoringChunk(Message message){
+        MessageHeader msgHeader = message.getHeader();
+
+        int chunkNum = msgHeader.getChunkNum();
+        String fileID = msgHeader.getFileID();
+
+        Chunk chunk = new Chunk(fileID, chunkNum);
+        restoringChunks.add(chunk);
     }
 
     public synchronized ArrayList<Chunk> getChunksFromPeer() {
@@ -122,8 +130,8 @@ public class FileHandler {
     }
 
     public synchronized ArrayList<Chunk> getOrderedByRepDegChunks() {
-        ArrayList<Chunk> chunkList = getChunks();
-        chunkList.sort(Comparator.comparingInt(Chunk::getRepDeg));
+        ArrayList<Chunk> chunkList = getChunksFromPeer();
+        chunkList.sort(Comparator.comparingInt(Chunk::getRepDeg).reversed());
         return chunkList;
     }
 
@@ -147,7 +155,7 @@ public class FileHandler {
         if (!stored.containsKey(fileID))
             addFileStored(newFile);
         FileData file = getFileFromFileID(fileID);
-        Chunk chunk = new Chunk(fileID, chunkNum);
+        Chunk chunk = new Chunk(fileID, chunkNum, null, 0);
         file.addChunkStored(chunk, peerID);
 
     }
@@ -157,12 +165,10 @@ public class FileHandler {
         if (file == null)
             return;
 
-        for (Chunk chunk : file.getChunkList()) {
+        for (Chunk chunk : file.getChunksFromPeer(Peer.getServerID())) {
             String chunkPath = Utils.TMP_CHUNKS + Peer.getServerID() + '/' + fileID + chunk.getChunkNum();
-            if (chunk.checkChunkFromPeer(Peer.getServerID())) {
-                Path path = Paths.get(chunkPath);
-                Files.delete(path);
-            }
+            Path path = Paths.get(chunkPath);
+            Files.delete(path);
 
         }
 
@@ -188,8 +194,6 @@ public class FileHandler {
 
     public synchronized boolean removeChunksGreaterRepDeg(long spaceRequired) {
         long spaceRemove = getSpaceRemovable() - spaceRequired;
-        System.out.println("SPACE: " + spaceRequired);
-
         if (spaceRemove > 0) {
             long removedSpace = 0;
             for (Chunk chunk : getChunksThatHaveGreaterRepDeg()) {

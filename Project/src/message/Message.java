@@ -11,78 +11,79 @@ public class Message {
     private MessageHeader msgHeader;
     private MessageBody msgBody;
 
+    String newMsgHeader = "";
+    String newMsgBody = "";
+
     public enum MessageType {
         PUTCHUNK, STORED, GETCHUNK, CHUNK, DELETE, REMOVED
-        // ENH_DELETED,
-        // ENH_AWOKE
     }
 
-    /**
-    * Body and header
-    */
     public Message(MessageHeader msgHeader, MessageBody msgBody) {
         this.msgBody = msgBody;
         this.msgHeader = msgHeader;
     }
 
-    /**
-     * Only header
-     */
     public Message(MessageHeader msgHeader) {
         this.msgBody = null;
         this.msgHeader = msgHeader;
     }
 
-    public Message(String message){
-        String[] msgSplit = message.split("\\R\\R", 2);
+    public Message(String message) {
 
-        String newMsgHeader = "";
-        String newMsgBody = "";
+        String[] header = splitMessage(message);
 
-
-        if (msgSplit.length == 0 || msgSplit.length > 2) {
-            return; //message discarded
-        } else if (msgSplit.length == 2)
-            newMsgBody = msgSplit[1];
-
-        newMsgHeader = msgSplit[0];
-
-        String[] headerSplit = newMsgHeader.split("\\s+");
-
-        MessageType type;
-        int numberOfArgs;
-
-        switch (headerSplit[0]) {
-        case "PUTCHUNK":
-            type = MessageType.PUTCHUNK;
-            numberOfArgs = 6;
-            break;
-        case "STORED":
-            type = MessageType.STORED;
-            numberOfArgs = 5;
-            break;
-        case "GETCHUNK":
-            type = MessageType.GETCHUNK;
-            numberOfArgs = 5;
-            break;
-        case "CHUNK":
-            type = MessageType.CHUNK;
-            numberOfArgs = 5;
-            break;
-        case "DELETE":
-            type = MessageType.DELETE;
-            numberOfArgs = 4;
-            break;
-        case "REMOVED":
-            type = MessageType.REMOVED;
-            numberOfArgs = 5;
-            break;
-        default:
+        if (header == null) {
+            System.out.println("Message received with bad header/body!");
             return;
         }
 
-        if (headerSplit.length != numberOfArgs)
-            return;
+        createMessageParts(header);
+
+    }
+
+    private String[] splitMessage(String message) {
+        String[] msg = message.split("\\R\\R", 2);
+
+        if (msg.length == 0 || msg.length > 2) {
+            return null;
+        } else if (msg.length == 2)
+            newMsgBody = msg[1];
+
+        newMsgHeader = msg[0];
+
+        return msg[0].split("\\s+");
+    }
+
+    private MessageType getType(String op) {
+        MessageType type = null;
+        switch (op) {
+        case "PUTCHUNK":
+            type = MessageType.PUTCHUNK;
+            break;
+        case "STORED":
+            type = MessageType.STORED;
+            break;
+        case "GETCHUNK":
+            type = MessageType.GETCHUNK;
+            break;
+        case "CHUNK":
+            type = MessageType.CHUNK;
+            break;
+        case "DELETE":
+            type = MessageType.DELETE;
+            break;
+        case "REMOVED":
+            type = MessageType.REMOVED;
+            break;
+        default:
+            return type;
+        }
+
+        return type;
+    }
+
+    private void createMessageParts(String[] header) {
+        MessageType type = getType(header[0]);
 
         String protocol_version;
         int peerID;
@@ -90,43 +91,42 @@ public class Message {
         int chunkNum;
         int repDeg;
 
-        protocol_version = headerSplit[1];
-        peerID = Integer.parseInt(headerSplit[2]);
-        fileID = headerSplit[3];
+        protocol_version = header[1];
+        peerID = Integer.parseInt(header[2]);
+        fileID = header[3];
 
         //TODO: METER SWITCH
 
-        if (type == MessageType.PUTCHUNK) {
-            chunkNum = Integer.parseInt(headerSplit[4]);
-            repDeg = Integer.parseInt(headerSplit[5]);
+        switch (type) {
+        case PUTCHUNK:
+            chunkNum = Integer.parseInt(header[4]);
+            repDeg = Integer.parseInt(header[5]);
             msgHeader = new MessageHeader(type, protocol_version, peerID, fileID, chunkNum, repDeg);
-        } else if (type == MessageType.GETCHUNK || type == MessageType.CHUNK
-                || type == MessageType.REMOVED || type == MessageType.STORED) {
-            chunkNum = Integer.parseInt(headerSplit[4]);
+            break;
+        case GETCHUNK:
+        case CHUNK:
+        case STORED:
+        case REMOVED:
+            chunkNum = Integer.parseInt(header[4]);
             msgHeader = new MessageHeader(type, protocol_version, peerID, fileID, chunkNum);
-        } else
+            break;
+        case DELETE:
             msgHeader = new MessageHeader(type, protocol_version, peerID, fileID);
+            break;
+        default:
+            break;
 
-        if (newMsgBody != "") 
-            msgBody = new MessageBody(newMsgBody.getBytes(Charset.forName("ISO_8859_1")));
-        
-    }
-
-    public String getMessageString() {
-        if (msgBody == null)
-            return msgHeader.getMessageHeaderStr();
-        else {
-            String new_string = new String(msgBody.getData());
-            return msgHeader.getMessageHeaderStr() + new_string;
         }
+
+        if (newMsgBody != "")
+            msgBody = new MessageBody(newMsgBody.getBytes(Charset.forName("ISO_8859_1")));
     }
 
-    public byte[] getMessageBytes() throws IOException {
+    public byte[] getMsgBytes() throws IOException {
         byte header[] = msgHeader.getMessageHeaderStr().getBytes(Charset.forName("ISO_8859_1"));
-
-        if (msgBody == null) 
-            return header;               
-        else{
+        if (msgBody == null)
+            return header;
+        else {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
             outputStream.write(header);
             outputStream.write(msgBody.getData());

@@ -3,7 +3,6 @@ package subprotocolsInitiators;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
 
 import communication.Peer;
@@ -20,13 +19,11 @@ public class BackupInitiator extends SubprotocolInitiator {
     private byte[] fileData;
     private String filePath;
     private int repDeg;
-    private boolean spaceReclaimCalled = false;
     private boolean isBacking = false;
 
     public BackupInitiator(String protocol_version) throws IOException {
         super(protocol_version);
         numTransmissions = 1;
-
     }
 
     @Override
@@ -43,10 +40,8 @@ public class BackupInitiator extends SubprotocolInitiator {
         }
         if (repDeg != 0) {
             upload = fileSplitter.getChunkList();
-
             FileData file = new FileData(fileIDHashedStr, filePath);
             Peer.addFileToHandlerStored(file);
-
             startUploadChunks(fileIDHashedStr);
         }
         Peer.getSubprotocolInitManager().resetBackupInitiator();
@@ -54,12 +49,10 @@ public class BackupInitiator extends SubprotocolInitiator {
         isBacking = false;
     }
 
-    public void spaceReclaimStart(Chunk chunk, int repDeg, byte[] fileData) throws IOException{
+    public void spaceReclaimStart(Chunk chunk, int repDeg, byte[] fileData) throws IOException {
         this.repDeg = repDeg;
         upload.add(chunk);
         this.fileData = fileData;
-
-        System.out.println("AAAAAAAAAAAAAAAAA BBBBBBBBBBB: " + fileData);
 
         startUploadChunks(chunk.getFileID());
 
@@ -79,7 +72,7 @@ public class BackupInitiator extends SubprotocolInitiator {
         boolean replicationDone = false;
         do {
             if (numTransmissions > Utils.NUM_TRANSMISSIONS) {
-                System.out.println("WARNING: number of transmissions exceeded.");
+                System.out.println("Number of transmissions over the max!");
                 return;
             }
 
@@ -88,8 +81,8 @@ public class BackupInitiator extends SubprotocolInitiator {
                         Peer.getServerID(), fileIDHashedStr, chunk.getChunkNum(), repDeg);
                 MessageBody msgBody = new MessageBody(chunk.getChunkData());
                 Message message = new Message(msgHeader, msgBody);
-                byte[] buffer = message.getMessageBytes();
-                Peer.sendMDBMessage(buffer);
+                byte[] buffer = message.getMsgBytes();
+                Peer.getMdbChannel().sendMessage(buffer);
             }
 
             try {
@@ -105,14 +98,13 @@ public class BackupInitiator extends SubprotocolInitiator {
                 numTransmissions++;
                 waitTime *= 2;
             }
-        } while (!replicationDone);
+        }while(!replicationDone);
 
         upload.clear();
     }
 
     public void updateUploadingChunks(Message message) {
         if (isBacking) {
-            System.out.println("UPDATE UPLOADING: " + Peer.getServerID());
             MessageHeader msgHeader = message.getHeader();
 
             int chunkNum = msgHeader.getChunkNum();
@@ -129,21 +121,14 @@ public class BackupInitiator extends SubprotocolInitiator {
 
     }
 
-    public void setSpaceReclaimCalled(boolean spaceReclaimCalled) {
-        this.spaceReclaimCalled = spaceReclaimCalled;
-        System.out.println("AAAAAAAAAAAAAAAKIIIIIIIIIIIIIII");
-    }
-
     public int getNumChunksUploading() {
         int numChunksUploading = 0;
-
-        Iterator<Chunk> it = upload.iterator();
-
-        while (it.hasNext()) {
-            Chunk chunk = it.next();
-            System.out.println("CURR: " + chunk.getRepDeg() + "   " + "FINAL " + chunk.getFinalRepDeg());
-            if (chunk.getRepDeg() == chunk.getFinalRepDeg())
-                it.remove();
+        for (int i = 0; i < upload.size(); i++) {
+            if (upload.get(i).getRepDegGreaterEqualFinal()){
+                // System.out.println("Chunk stored in other peer " + upload.get(i).getChunkNum() + "REP " +
+                //  upload.get(i).getRepDeg() + " Final " + upload.get(i).getFinalRepDeg());
+                upload.remove(i);
+            }
             else
                 numChunksUploading++;
         }

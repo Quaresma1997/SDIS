@@ -22,55 +22,43 @@ public class SpaceReclaim implements Runnable {
     public SpaceReclaim(Message message) {
         this.msgHeader = message.getHeader();
 
-        System.out.println("Start SpaceReclaim");
+        System.out.println("Space Reclaim started");
     }
 
     @Override
     public void run() {
-        String protocol_version = msgHeader.getProtocolVersion();
         int peerID = msgHeader.getPeerID();
         String fileID = msgHeader.getFileID();
         int chunkNum = msgHeader.getChunkNum();
 
         Chunk chunk = Peer.getFileHandler().getStoredChunk(fileID, chunkNum);
 
-        // If this peer doesn't have the chunk, it simply returns.
+        // If the chunk is not in this peer then return
         if (chunk == null)
             return;
 
         chunk.removePeerID(peerID);
-
-        if (!chunk.checkChunkFromPeer(Peer.getServerID())) {
-            System.out.println("Curr: " + chunk.getRepDeg());
-            System.out.println("Final: " + chunk.getFinalRepDeg());
+        // If the chunk is not backed up in this peer return
+        if (!chunk.checkChunkFromPeer(Peer.getServerID()))
             return;
-        }
 
-        System.out.println("FFA: " + chunk.getRepDeg());
-        System.out.println("FIII: " + chunk.getFinalRepDeg());
 
-        // If the new replication degree is less than the desired, we need to get it back to that number.
+        // System.out.println("BACKUP Chunk " + chunkNum + "REP " + chunk.getRepDeg() + " FINAL " + chunk.getFinalRepDeg());
+        // If the rep deg drops bellow the final rep reg, then this peer initiates the backup protocol for that chunk
         if (chunk.getRepDeg() < chunk.getFinalRepDeg()) {
+            
             try {
                 TimeUnit.MILLISECONDS.sleep(new Random().nextInt(401));
 
-                System.out.println("A");
-
-                // If this peer has already received the message to backup this exact chunk,
-                // we don't send the message.
+                // In the case that other peer initiates the backup protocol first, the this does nothing
                 if (Peer.getFileHandler().getBackingUpChunks().contains(chunk))
                     return;
 
-                System.out.println("B");
-
                 FileData file = Peer.getFileHandler().getFileFromFileID(fileID);
-                System.out.println(file);
-                System.out.println(Peer.getFileHandler().getStored());
                 String chunkPath = Utils.TMP_CHUNKS + Peer.getServerID() + '/' + file.getFileID() + chunk.getChunkNum();
                 Path path = Paths.get(chunkPath);
                 byte[] fileData = Files.readAllBytes(path);
                 chunk.setChunkData(fileData);
-                System.out.println(fileData);
                 Peer.getSubprotocolInitManager().getBackupInitiator().spaceReclaimStart(chunk, chunk.getFinalRepDeg(), fileData);
 
             } catch (InterruptedException e) {

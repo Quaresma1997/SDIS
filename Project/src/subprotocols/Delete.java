@@ -7,18 +7,17 @@ import message.Message;
 import message.MessageHeader;
 import message.*;
 
-public class Delete implements Runnable{
+public class Delete implements Runnable {
     private MessageHeader msgHeader;
 
-    public Delete(Message message){
+    public Delete(Message message) {
         this.msgHeader = message.getHeader();
-        System.out.println("Start Delete");
+        System.out.println("Delete started");
     }
 
     @Override
-    public void run(){
+    public void run() {
         String fileID = msgHeader.getFileID();
-
         try {
             Peer.deleteFileStored(fileID);
         } catch (IOException e) {

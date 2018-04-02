@@ -14,7 +14,6 @@ public class FileData {
     private String filePath;
     private String fileID;
     private ArrayList<Chunk> chunkList = new ArrayList<>();
-    // private String lastModified;
 
     public FileData(String fileID, String filePath) {
         this.fileID = fileID;
@@ -36,32 +35,37 @@ public class FileData {
     public void setFilePath(String filePath) {
         this.filePath = filePath;
     }
-    
+
     public ArrayList<Chunk> getChunkList() {
         return chunkList;
     }
 
-    public long getSize() throws IOException {
+    public synchronized long getSize() {
         long size = 0;
 
-        for (Chunk chunk : chunkList) {
-            if (chunk.checkChunkFromPeer(Peer.getServerID())) {
-                String chunkPath = Utils.TMP_CHUNKS + Peer.getServerID() + '/' + fileID + chunk.getChunkNum();
-                Path path = Paths.get(chunkPath);
-                if (new File(chunkPath).exists()) {
-                    long chunkSize = Files.readAllBytes(path).length;
-                    size += chunkSize;
+        for (Chunk chunk : getChunksFromPeer(Peer.getServerID())) {
+            String chunkPath = Utils.TMP_CHUNKS + Peer.getServerID() + '/' + fileID + chunk.getChunkNum();
+            Path path = Paths.get(chunkPath);
+            if (new File(chunkPath).exists()) {
+                long chunkSize = 0;
+                try {
+                    chunkSize = Files.readAllBytes(path).length;
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
+
+                size += chunkSize;
             }
+
         }
 
         return size;
     }
 
-    public ArrayList<Chunk> getChunksGreaterRepDeg() {
+    public synchronized ArrayList<Chunk> getChunksGreaterRepDeg() {
         ArrayList<Chunk> retChunkList = new ArrayList<>();
-        for (Chunk chunk : chunkList) {
-            if (chunk.checkChunkFromPeer(Peer.getServerID()) && chunk.getRepDegGreaterThanFinalRepDeg()) {
+        for (Chunk chunk : getChunksFromPeer(Peer.getServerID())) {
+            if (chunk.getRepDegGreaterThanFinalRepDeg()) {
                 retChunkList.add(chunk);
             }
         }
@@ -72,7 +76,7 @@ public class FileData {
         this.chunkList = chunkList;
     }
 
-    public Chunk getChunk(int chunkID) {
+    public synchronized Chunk getChunk(int chunkID) {
         for (Chunk chunk : chunkList)
             if (chunk.getChunkNum() == chunkID)
                 return chunk;
@@ -81,7 +85,6 @@ public class FileData {
     }
 
     public synchronized void addChunkStored(Chunk newChunk, int peerID) {
-        System.out.println("STORED THE PEER: " + newChunk.getChunkNum() + "     " + peerID);
         for (Chunk chunk : chunkList)
             if (chunk.equals(newChunk)) {
                 chunk.updateChunkRepDeg(peerID, -1);
@@ -93,10 +96,10 @@ public class FileData {
     }
 
     public synchronized void addChunkPutchunk(Chunk newChunk, int peerID) {
-        System.out.println("PUTCHUNK THE PEER: " + newChunk.getChunkNum() + "     " + peerID);
         for (Chunk chunk : chunkList)
             if (chunk.equals(newChunk)) {
                 chunk.updateChunkRepDeg(peerID, newChunk.getFinalRepDeg());
+                chunk.setChunkData(newChunk.getChunkData());
                 return;
             }
 
@@ -104,30 +107,17 @@ public class FileData {
         chunkList.add(newChunk);
     }
 
-    public boolean removeChunk(int chunkID) {
+    public synchronized boolean removeChunk(int chunkID) {
         for (int i = 0; i < chunkList.size(); i++) {
             if (chunkList.get(i).getChunkNum() == chunkID) {
                 chunkList.remove(i);
                 return true;
             }
         }
-
         return false;
     }
 
-    public boolean addPeerIDToChunk(int chunkNum, int peerID) {
-        for (Chunk chunk : chunkList) {
-            if (chunk.getChunkNum() == chunkNum) {
-                chunk.updateChunkRepDeg(peerID, chunk.getFinalRepDeg());
-                return true;
-            }
-
-        }
-
-        return false;
-    }
-
-    public ArrayList<Chunk> getChunksFromPeer(int peerID) {
+    public synchronized ArrayList<Chunk> getChunksFromPeer(int peerID) {
         ArrayList<Chunk> chunksFromPeer = new ArrayList<>();
         for (Chunk chunk : chunkList) {
             if (chunk.checkChunkFromPeer(peerID)) {
@@ -138,28 +128,9 @@ public class FileData {
         return chunksFromPeer;
     }
 
-    public void removeChunkFromPeer(int chunkNum, int peerID) {
-        for (int i = 0; i < chunkList.size(); i++) {
-            if (chunkList.get(i).getChunkNum() == chunkNum) {
-                chunkList.remove(i);
-                break;
-            }
-        }
-        /*  for (Chunk chunk : chunkList) {
-            if (chunk.getChunkNum() == chunkNum) {
-                chunk.removePeerID(peerID);
-                chunk.decRepDeg();
-            }
-        
-            if(chunk.getPeersIDs().size() == 0){
-                chunkList.remove(chunk);
-                break;
-            } 
-        } */
-
-    }
-
-    public String toString() {
-        return "fileID: " + fileID + " filepath: " + filePath + " numChunks: " + chunkList.size();
+    public synchronized void removeChunkFromPeer(int chunkNum, int peerID) {
+        getChunk(chunkNum).removePeerID(peerID);
+        chunkList.remove(getChunk(chunkNum));
+        // System.out.println("CHUNK REMOVED " + chunkNum);
     }
 }

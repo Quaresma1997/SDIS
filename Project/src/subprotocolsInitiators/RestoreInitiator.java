@@ -24,15 +24,13 @@ public class RestoreInitiator extends SubprotocolInitiator {
     private String filePath;
     boolean isRestoring;
 
-    public RestoreInitiator(String protocol_version) throws IOException, InterruptedException {
+    public RestoreInitiator(String protocol_version) throws IOException {
         super(protocol_version);
-        
-        //initiate();
 
     }
 
     @Override
-    public void initiate() throws IOException, InterruptedException {
+    public void initiate() throws IOException {
         isRestoring = true;
         FileData file = Peer.getFileFromHandlerStored(filePath);
         if (file == null) {
@@ -42,14 +40,13 @@ public class RestoreInitiator extends SubprotocolInitiator {
 
         String fileID = file.getFileID();
         int numChunks = file.getChunkList().size();
-        System.out.println("FILE ID: " + fileID);
         
         for (int i = 0; i < numChunks; i++) {
             MessageHeader msgHeader = new MessageHeader(Message.MessageType.GETCHUNK, protocol_version,
                     Peer.getServerID(), fileID, (i + 1));
             Message message = new Message(msgHeader);
-            byte[] buffer = message.getMessageBytes();
-            Peer.sendMCMessage(buffer);
+            byte[] buffer = message.getMsgBytes();
+            Peer.getMcChannel().sendMessage(buffer);
 
         }
 
@@ -81,38 +78,28 @@ public class RestoreInitiator extends SubprotocolInitiator {
     private void restoreFile() throws IOException {
         FileData file = Peer.getFileFromHandlerStored(filePath);
 
-        int numChunks = file.getChunkList().size();
-        boolean foundAllChunks = false;
-        long t = System.currentTimeMillis();
-        long end = t + 2500;
-
-        System.out.println("NUMC HUNKS: " + numChunks);
-
         
+        boolean found = false;
+        long t = System.currentTimeMillis();
+        long timeLimit = t + 2500;      
+        int numChunks = file.getChunkList().size();
 
-        while (System.currentTimeMillis() < end && !foundAllChunks) {
-            try {
-                Thread.sleep(1);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        while (System.currentTimeMillis() < timeLimit && !found) {
             if (numChunks == restore.size())
-                foundAllChunks = true;
+                found = true;
         }
 
-        if (!foundAllChunks) {
-            System.out.println("Restore: Didn t find all chunks!");
+        if (!found) {
+            System.out.println("Did not find all chunks to restore file!");
             return;
         } else
-            System.out.println("Restore: Found all chunks!");
+            System.out.println("Found all chunks to restore file!");
 
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         restore.sort(Comparator.comparingInt(Chunk::getChunkNum));
         
         for (int i = 0; i < restore.size() ; i++) {
-            System.out.println(restore.get(i).getChunkNum());
-            System.out.println(restore.get(i).getChunkData().length);
             try {
                 outputStream.write(restore.get(i).getChunkData());
             } catch (IOException e) {
@@ -120,7 +107,7 @@ public class RestoreInitiator extends SubprotocolInitiator {
             }
         }
         byte[] fileData = outputStream.toByteArray();
-        FileOutputStream fos = new FileOutputStream(Utils.TMP_FILES_RESTORED + filePath);
+        FileOutputStream fos = new FileOutputStream(Utils.TMP_FILES_RESTORED + Peer.getServerID() + '/' + filePath);
         fos.write(fileData);
         fos.close();
         System.out.println("File successfully restored!");

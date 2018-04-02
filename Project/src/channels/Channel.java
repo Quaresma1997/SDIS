@@ -9,14 +9,19 @@ public abstract class Channel implements Runnable{
     protected InetAddress ip;
     protected int port;
     protected MulticastSocket socket;
-
+    /**
+     * @param  ip
+     * @param  port
+     */
     public Channel (InetAddress ip, int port){
         this.ip = ip;
         this.port = port;
 
         initiateSocket();
     }
-
+    /**
+     * Starts the channel socket.
+     */
     protected void initiateSocket() {
         try {
             socket = new MulticastSocket(port);
@@ -26,36 +31,17 @@ public abstract class Channel implements Runnable{
             e.printStackTrace();
         }
     }
-
+    /**
+     * Closes the channel socket.
+     */
     protected void closeSocket(){
         if(socket != null)
             socket.close();
     }
-
-    public int getPort(){
-        return port;
-    }
-
-    public void setPort(int port){
-        this.port = port;
-    }
-
-    public InetAddress getIP() {
-        return ip;
-    }
-
-    public void setIP(InetAddress ip) {
-        this.ip = ip;
-    }
-
-    public MulticastSocket getSocket() {
-        return socket;
-    }
-
-    public void setSocket(MulticastSocket socket) {
-        this.socket = socket;
-    }
-
+    /**
+     * Sends the given message via this channel socket.
+     * @param message
+     */
     public void sendMessage(byte[] message) {
         DatagramPacket packet = new DatagramPacket(message, message.length, ip, port);
         try {

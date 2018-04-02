@@ -16,14 +16,12 @@ public class MDR_channel extends Channel {
 
     public MDR_channel(InetAddress ip, int port) {
         super(ip, port);
-        System.out.println("MDR online.");
+        System.out.println("Started MDR.");
 
     }
 
     @Override
     public void run() {
-        // initiateSocket();
-        System.out.println("MDR");
         boolean stop = false;
         while (!stop) {
             byte[] buffer = new byte[Utils.CHUNK_MAX_SIZE];
@@ -31,9 +29,7 @@ public class MDR_channel extends Channel {
             try {
                 socket.receive(dp);
                 String message = new String(dp.getData(), 0, dp.getLength(), Charset.forName("ISO_8859_1"));
-                // System.out.println("MDR message: " + message);
-                
-                Peer.addMessageSubprotocolManager(message);
+                Peer.getSubprotocolManager().addMessage(message);
             } catch (IOException e) {
                 e.printStackTrace();
             }

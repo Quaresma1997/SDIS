@@ -37,21 +37,20 @@ public class Backup implements Runnable {
 
         this.msgHeader = message.getHeader();
         this.msgBody = message.getBody();
-        System.out.println("Start Backup");
+        System.out.println("Backup started");
     }
 
     @Override
     public void run() {
         String protocol_version = msgHeader.getProtocolVersion();
-        int peerID = msgHeader.getPeerID();
         int repDeg = msgHeader.getRepDeg();
         String fileID = msgHeader.getFileID();
         int chunkNum = msgHeader.getChunkNum();
 
         byte[] chunkData = msgBody.getData();
-        System.out.println("KUKU: " + fileID + chunkNum);
 
         Chunk chunk = new Chunk(fileID, chunkNum, chunkData, repDeg);
+
         boolean enoughSpace = false;
         try {
             enoughSpace = checkEnoughSpace(chunk);
@@ -63,20 +62,20 @@ public class Backup implements Runnable {
 
         Peer.getFileHandler().addBackingUpChunk(chunk);
         FileData file = Peer.getFileFromHandlerStoredFileID(fileID);
+
+        //Checks if this peer has called the backup for this chunk
         if(file != null){
             if(file.getFilePath() != ""){
                 return;
             }
         }
        
-
+        //Checks if this peer has already backed up this chunk
         if (Peer.getFileHandler().checkChunkStoredFromPeer(chunk, fileID, Peer.getServerID())) {
             Peer.getFileHandler().removeBackingUpChunk(chunk);
-            System.out.println("Chunk already stored. Aborting.");
+            // System.out.println("Chunk " + chunkNum + " already stored. Aborting.");
             return;
         }
-
-        System.out.println("BUKA");
 
         FileOutputStream out = null;
 
@@ -86,10 +85,10 @@ public class Backup implements Runnable {
             if (protocol_version.equals("1.1")) {
                 if (checkChunkRepDegGreaterThanFinal(fileID, chunkNum, repDeg)) {
                     Peer.getFileHandler().removeBackingUpChunk(chunk);
+                    System.out.println("Chunk not stored beacuse it's rep deg is greater than the final rep deg.");
                     return;
                 }
             }
-            System.out.println("CHUNK REP DEG: " + chunk.getFinalRepDeg());
             Peer.getFileHandler().addFileChunkPutchunk(chunk, fileID);
 
             out = new FileOutputStream(Utils.TMP_CHUNKS + Peer.getServerID() + '/' + fileID + chunkNum);
@@ -118,9 +117,10 @@ public class Backup implements Runnable {
             Chunk chunk = file.getChunk(chunkNum);
 
             if (chunk != null) {
-                System.out.println("CURR: " + chunk.getRepDeg() + "   " + "FINAL " + repDeg + "CHUNK NUM: " + chunkNum);
-                if (chunk.getRepDeg() >= repDeg)
+                if (chunk.getRepDeg() >= repDeg){
+                    // System.out.println("Chunk " + chunkNum + " Rep deg " + chunk.getRepDeg() + " " + repDeg);
                     return true;
+                }
 
             }
         }
@@ -129,10 +129,10 @@ public class Backup implements Runnable {
 
     private boolean checkEnoughSpace(Chunk chunk) throws IOException {
 
-        if ((chunk.getChunkData().length + Peer.getOcupiedSpace()) > Peer.getSpaceReclaimed() * 1000) {
+        if ((chunk.getChunkData().length + Peer.getOcupiedSpace()) > Peer.getSpaceAvailable() * 1000) {
             if (!Peer.getFileHandler().removeChunksGreaterRepDeg(
-                    (chunk.getChunkData().length + Peer.getOcupiedSpace()) - Peer.getSpaceReclaimed() * 1000)) {
-                System.out.println("WARNING: Peer discarded a chunk because it had no available space to host it.");
+                    (chunk.getChunkData().length + Peer.getOcupiedSpace()) - Peer.getSpaceAvailable() * 1000)) {
+                System.out.println("Chunk not stored due to lack of space in this peer!");
                 return false;
             }
         }

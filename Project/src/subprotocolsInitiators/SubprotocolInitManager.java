@@ -49,7 +49,7 @@ public class SubprotocolInitManager {
         delete = new DeleteInitiator(protocol_version);
     }
 
-    public void resetRestoreInitiator() throws IOException, InterruptedException {
+    public void resetRestoreInitiator() throws IOException {
         restore = new RestoreInitiator(protocol_version);
     }
 

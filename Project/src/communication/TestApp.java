@@ -27,7 +27,6 @@ public class TestApp {
     private static long spaceRequired;
     private static String filePath;
 
-
     private static RMI stub;
 
     public static void main(String[] args) throws IOException {
@@ -39,7 +38,7 @@ public class TestApp {
 
         makeOperation();
     
-        System.out.println("TestApp closed.");
+        System.out.println("END TestApp.");
     }
 
     private static void makeOperation() {
@@ -49,34 +48,29 @@ public class TestApp {
                 Path path = Paths.get(filePath);
                 byte[] fileData = Files.readAllBytes(path);
                 stub.backup(filePath, repDeg, fileData);
-            } catch (InterruptedException | IOException | NoSuchAlgorithmException e) {
-                System.out.println(e.toString());
+            } catch (IOException e) {
                 e.printStackTrace();
             }
 
             break;
         case "RESTORE":
             try {
-                System.out.println(filePath);
                 stub.restore(filePath);
-            } catch (IOException | InterruptedException e) {
-                System.out.println(e.toString());
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             break;
         case "DELETE":
             try {
                 stub.delete(filePath);
-            } catch (NoSuchAlgorithmException | InterruptedException | IOException e) {
-                System.out.println(e.toString());
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             break;
         case "RECLAIM":
             try {
                 stub.reclaimDiskSpace(spaceRequired);
-            } catch (IOException | InterruptedException e) {
-                System.out.println(e.toString());
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             break;
@@ -84,8 +78,7 @@ public class TestApp {
             try {
                 System.out.println("Info: ");
                 System.out.println(stub.stateInformation());
-            } catch (IOException | InterruptedException e) {
-                System.out.println(e.toString());
+            } catch (IOException e) {
                 e.printStackTrace();
             }
             break;
@@ -102,7 +95,6 @@ public class TestApp {
 
         } catch (Exception e) {
             System.out.println("Given RMI object name is incorrect!");
-            System.out.println(e.toString());
 
             return false;
         }
@@ -113,7 +105,7 @@ public class TestApp {
     private static boolean validArgs(String[] args) {
 
         if (args.length < 2 || args.length > 4) {
-            System.out.println("Usage: java TestApp <peer_ap> <sub_protocol> <opnd_1> <opnd_2>");
+            System.out.println("Usage: java communication/TestApp <peer_ap> <sub_protocol> <opnd_1> <opnd_2>");
             return false;
         }
 
