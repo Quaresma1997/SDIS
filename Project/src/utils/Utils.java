@@ -20,12 +20,12 @@ public class Utils{
     public final static int NUM_THREADS_POOL = 5;
 
     public final static long MAX_DISK_REQUIRED_SPACE = 8000;
+    public final static long RESTORE_MAX_TIME = 5500;
 
     public final static String CRLF = "" + CR + LF;
 
-    public static final String TMP_CHUNKS = "tmp_chunks";
-    public static final String TMP_FILES_RESTORED = "tmp_restores";
-    public static final String FILES = "files_examples/";
+    public static final String TMP_CHUNKS = "../bin/tmp_chunks";
+    public static final String TMP_FILES_RESTORED = "../bin/tmp_restores";
 
 
     public static boolean deleteDirectory(File f) throws IOException {

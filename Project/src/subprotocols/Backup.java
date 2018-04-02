@@ -73,7 +73,7 @@ public class Backup implements Runnable {
         //Checks if this peer has already backed up this chunk
         if (Peer.getFileHandler().checkChunkStoredFromPeer(chunk, fileID, Peer.getServerID())) {
             Peer.getFileHandler().removeBackingUpChunk(chunk);
-            // System.out.println("Chunk " + chunkNum + " already stored. Aborting.");
+            System.out.println("Chunk " + chunkNum + " already stored. Aborting.");
             return;
         }
 
@@ -85,7 +85,7 @@ public class Backup implements Runnable {
             if (protocol_version.equals("1.1")) {
                 if (checkChunkRepDegGreaterThanFinal(fileID, chunkNum, repDeg)) {
                     Peer.getFileHandler().removeBackingUpChunk(chunk);
-                    System.out.println("Chunk not stored beacuse it's rep deg is greater than the final rep deg.");
+                    System.out.println("Chunk " + chunkNum + " not stored beacuse it's rep deg is greater than the final rep deg.");
                     return;
                 }
             }

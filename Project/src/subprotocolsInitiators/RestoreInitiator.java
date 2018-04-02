@@ -40,7 +40,7 @@ public class RestoreInitiator extends SubprotocolInitiator {
 
         String fileID = file.getFileID();
         int numChunks = file.getChunkList().size();
-        
+
         for (int i = 0; i < numChunks; i++) {
             MessageHeader msgHeader = new MessageHeader(Message.MessageType.GETCHUNK, protocol_version,
                     Peer.getServerID(), fileID, (i + 1));
@@ -69,8 +69,9 @@ public class RestoreInitiator extends SubprotocolInitiator {
 
             Chunk chunk = new Chunk(chunkNum, chunkData);
 
-            if (!restore.contains(chunk))
+            if (!restore.contains(chunk)) {
                 restore.add(chunk);
+            }
         }
 
     }
@@ -78,19 +79,23 @@ public class RestoreInitiator extends SubprotocolInitiator {
     private void restoreFile() throws IOException {
         FileData file = Peer.getFileFromHandlerStored(filePath);
 
-        
         boolean found = false;
         long t = System.currentTimeMillis();
-        long timeLimit = t + 2500;      
+        long timeLimit = t + Utils.RESTORE_MAX_TIME;
         int numChunks = file.getChunkList().size();
 
         while (System.currentTimeMillis() < timeLimit && !found) {
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             if (numChunks == restore.size())
                 found = true;
         }
 
         if (!found) {
-            System.out.println("Did not find all chunks to restore file!");
+            System.out.println("Did not find all chunks to restore file(" + restore.size() + "/" + numChunks + ")");
             return;
         } else
             System.out.println("Found all chunks to restore file!");
@@ -98,8 +103,8 @@ public class RestoreInitiator extends SubprotocolInitiator {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         restore.sort(Comparator.comparingInt(Chunk::getChunkNum));
-        
-        for (int i = 0; i < restore.size() ; i++) {
+
+        for (int i = 0; i < restore.size(); i++) {
             try {
                 outputStream.write(restore.get(i).getChunkData());
             } catch (IOException e) {
@@ -127,5 +132,9 @@ public class RestoreInitiator extends SubprotocolInitiator {
 
     public void setRestore(ArrayList<Chunk> restore) {
         this.restore = restore;
+    }
+
+    public boolean getIsRestoring() {
+        return isRestoring;
     }
 }

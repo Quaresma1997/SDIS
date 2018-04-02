@@ -95,7 +95,6 @@ public class Message {
         peerID = Integer.parseInt(header[2]);
         fileID = header[3];
 
-        //TODO: METER SWITCH
 
         switch (type) {
         case PUTCHUNK:

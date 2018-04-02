@@ -63,7 +63,6 @@ public class Restore implements Runnable {
                         Peer.getFileHandler().removeRestoringChunks(chunk);
                         return;
                     }
-
                     Peer.getMdrChannel().sendMessage(buffer);
                 } catch (IOException e) {
                     e.printStackTrace();

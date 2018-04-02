@@ -69,7 +69,6 @@ public class Peer implements RMI {
 		new Thread(mdr_channel).start();
 
 		new Thread(subprotocolManager).start();
-		
 
 	}
 
@@ -150,7 +149,8 @@ public class Peer implements RMI {
 		int MC_port, MDB_port, MDR_port;
 
 		if (args.length != 6) {
-			System.out.println("Usage: java communication/Peer <protocol_version> <server_id> <service_access_point> <mc:mc_port> <mdb:mdb_port> <mdl:mdl_port>");
+			System.out.println(
+					"Usage: java communication/Peer <protocol_version> <server_id> <service_access_point> <mc:mc_port> <mdb:mdb_port> <mdl:mdl_port>");
 			return false;
 		} else {
 			protocol_version = args[0].trim();
@@ -194,7 +194,8 @@ public class Peer implements RMI {
 	}
 
 	public static void restoreGetChunk(Message message) {
-		fileHandler.checkRestoringChunk(message);
+		if (!subprotocolInitManager.getRestoreInitiator().getIsRestoring())
+			fileHandler.checkRestoringChunk(message);
 		subprotocolInitManager.getRestoreInitiator().addChunkRestore(message);
 	}
 
