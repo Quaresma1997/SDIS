@@ -1,0 +1,9 @@
+cd .\Documents\GitHub\SDIS\Project\src\
+
+start rmiregistry
+
+javac .\communication\*.java
+
+java communication/Peer 1.1 1 Test1 224.0.0.0:8000 224.0.0.0:8001 224.0.0.0:8002
+
+java communication/TestApp Test BACKUP IMG_4.jpg 1
