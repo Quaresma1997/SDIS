@@ -81,7 +81,7 @@ public class Peer implements RMI {
 				e.printStackTrace();
 			}
 		}
-		chunkDir.mkdir();
+		chunkDir.mkdirs();
 
 		File restoreDir = new File(Utils.TMP_FILES_RESTORED + server_id);
 		if (restoreDir.exists()) {
@@ -91,7 +91,7 @@ public class Peer implements RMI {
 				e.printStackTrace();
 			}
 		}
-		restoreDir.mkdir();
+		restoreDir.mkdirs();
 	}
 
 	private static void initiateRMI() {
