@@ -96,7 +96,7 @@ public class Peer implements RMI {
 	}
 
 	private static void initiateRMI() {
-	System.setProperty("java.rmi.server.hostname", "192.168.32.200");
+	System.setProperty("java.rmi.server.hostname", "localhost");
 		Peer peer = new Peer();
 		try {
 			RMI stub = (RMI) UnicastRemoteObject.exportObject(peer, 0);
