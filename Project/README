@@ -1,20 +1,14 @@
+
 Enter the src directory
-
-Windows
-
+Linux : To compile the code run the command compile.sh
+Windows : To compile the code run the command compile.bat
 To compile the code run the command compile.bat
-
 To run the application:
-
 Initiate the peers using the folwing command
-
 java communication/Peer <protocol_version> <peer_id> <service_access_point> 224.0.0.0:8000 224.0.0.0:8001 224.0.0.0:8002
 protocol_version: 1.0 or 1.1
 peer_id: an integer
 service_access_point: remote object name
-
 Start testApp using the command:
-
 java communication/TestApp <peer_ap> <operation> <opnd_1> <opnd_2>
 example: java communication/TestApp Test1 BACKUP file.txt 1
-
