@@ -22,8 +22,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import com.sun.scenario.effect.BoxBlur;
-
 import message.*;
 
 import communication.Peer;
