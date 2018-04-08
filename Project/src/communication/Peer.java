@@ -54,8 +54,7 @@ public class Peer implements RMI {
 
 		createPeerDirectories();
 
-		if(server_id == 1)
-			initiateRMI();
+		initiateRMI();
 
 		spaceAvailable = Utils.MAX_DISK_REQUIRED_SPACE;
 
@@ -102,7 +101,12 @@ public class Peer implements RMI {
 			RMI stub = (RMI) UnicastRemoteObject.exportObject(peer, 0);
 			Registry registry;
 
-			registry = LocateRegistry.createRegistry(1099);	
+			if(server_id == 1){
+				System.setProperty("java.rmi.server.hostname", "localhost");
+				registry = LocateRegistry.createRegistry(1099);
+			}else{
+				registry = LocateRegistry.getRegistry();
+			}
 			
 			registry.bind(service_access_point, stub);
 			System.out.println("Peer ready");
